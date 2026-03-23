@@ -8,7 +8,7 @@ namespace HouseholdInventory.Infrastructure.Services;
 
 public class AuditService(ApplicationDbContext dbContext, ICurrentUserService currentUserService) : IAuditService
 {
-    public async Task WriteAsync(AuditActionType action, string entityName, Guid? entityId, string category, string summary, object? oldValues, object? newValues, CancellationToken cancellationToken = default)
+    public Task WriteAsync(AuditActionType action, string entityName, Guid? entityId, string category, string summary, object? oldValues, object? newValues, CancellationToken cancellationToken = default)
     {
         dbContext.AuditLogs.Add(new AuditLog
         {
@@ -23,6 +23,8 @@ public class AuditService(ApplicationDbContext dbContext, ICurrentUserService cu
             NewValuesJson = JsonSerializer.Serialize(newValues ?? new { }),
             TimestampUtc = DateTime.UtcNow
         });
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // Callers are responsible for invoking SaveChangesAsync so that the audit entry
+        // and the main entity change are persisted in a single transaction.
+        return Task.CompletedTask;
     }
 }

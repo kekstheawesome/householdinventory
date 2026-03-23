@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 using HouseholdInventory.Application.DTOs;
 using HouseholdInventory.Application.Interfaces;
 using HouseholdInventory.Domain.Entities;
@@ -54,20 +55,36 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyHeader().AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin();
+        }
+        else if (allowedCorsOrigins is { Length: > 0 })
+        {
+            policy.WithOrigins(allowedCorsOrigins).AllowCredentials();
+        }
+    });
 });
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var seedLogger = services.GetRequiredService<ILogger<Program>>();
     await SeedData.InitializeAsync(
         services.GetRequiredService<ApplicationDbContext>(),
         services.GetRequiredService<UserManager<ApplicationUser>>(),
-        services.GetRequiredService<RoleManager<IdentityRole<Guid>>>());
+        services.GetRequiredService<RoleManager<IdentityRole<Guid>>>(),
+        seedLogger);
 }
 
 app.UseSwagger();

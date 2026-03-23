@@ -3,20 +3,26 @@ using HouseholdInventory.Domain.Enums;
 using HouseholdInventory.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace HouseholdInventory.Infrastructure.Services;
 
 public static class SeedData
 {
-    public static async Task InitializeAsync(ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager)
+    public static async Task InitializeAsync(ApplicationDbContext dbContext, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, ILogger? logger = null)
     {
-        await dbContext.Database.MigrateAsync();
+        // Use EnsureCreatedAsync for dev/scaffold scenarios (no migrations required).
+        await dbContext.Database.EnsureCreatedAsync();
 
         foreach (var role in new[] { "Admin", "Roommate" })
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
-                await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+                var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+                if (!roleResult.Succeeded)
+                {
+                    logger?.LogError("Failed to create role '{Role}': {Errors}", role, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                }
             }
         }
 
@@ -26,8 +32,18 @@ public static class SeedData
             if (user is null)
             {
                 user = new ApplicationUser { UserName = email, Email = email, FullName = fullName, EmailConfirmed = true };
-                await userManager.CreateAsync(user, password);
-                await userManager.AddToRoleAsync(user, role);
+                var createResult = await userManager.CreateAsync(user, password);
+                if (!createResult.Succeeded)
+                {
+                    logger?.LogError("Failed to create seed user '{Email}': {Errors}", email, string.Join(", ", createResult.Errors.Select(e => e.Description)));
+                    return;
+                }
+
+                var roleResult = await userManager.AddToRoleAsync(user, role);
+                if (!roleResult.Succeeded)
+                {
+                    logger?.LogError("Failed to assign role '{Role}' to seed user '{Email}': {Errors}", role, email, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                }
             }
         }
 
