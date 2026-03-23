@@ -12,8 +12,19 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState | null>(() => {
-    const raw = localStorage.getItem('household-auth');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = localStorage.getItem('household-auth');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.token || !parsed?.email || !parsed?.role) {
+        localStorage.removeItem('household-auth');
+        return null;
+      }
+      return parsed as AuthState;
+    } catch {
+      localStorage.removeItem('household-auth');
+      return null;
+    }
   });
 
   const value = useMemo(() => ({
