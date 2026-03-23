@@ -1,0 +1,26 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+
+# Frontend build artifacts
+src/frontend/node_modules/
+src/frontend/dist/
+
+# Environment files (real secrets)
+src/backend/**/.env
+src/frontend/.env
+src/frontend/.env.local
+src/frontend/.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
